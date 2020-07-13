@@ -1140,7 +1140,7 @@ static void finishgencycle (lua_State *L, global_State *g) {
 static void youngcollection (lua_State *L, global_State *g) {
   GCObject **psurvival;  /* to point to first non-dead survival object */
   lua_assert(g->gcstate == GCSpropagate);
-  markold(g, g->survival, g->reallyold);
+  markold(g, g->allgc, g->reallyold);
   markold(g, g->finobj, g->finobjrold);
   atomic(L);
 
