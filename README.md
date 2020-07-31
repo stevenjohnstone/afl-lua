@@ -92,3 +92,7 @@ when installing a rock e.g.
 ```
 luarocks install foo CC=afl-gcc
 ```
+
+## Other Approaches
+
+It's possible to make a fuzzer along the lines of [afl-python](https://gist.github.com/stevenjohnstone/2236f632bb58697311cd01ea1cafbbc6) where debug instrumentation is used to provide coverage guidance. See [this gist](https://gist.github.com/stevenjohnstone/2236f632bb58697311cd01ea1cafbbc6) for a Lua implementation. 
