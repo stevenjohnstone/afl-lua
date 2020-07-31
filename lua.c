@@ -13,6 +13,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/shm.h>
+#include <sys/wait.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #include "lua.h"
 
@@ -546,6 +550,67 @@ static int handle_luainit (lua_State *L) {
     return dostring(L, init, name);
 }
 
+/* AFL machinery start:
+ *
+ * The presence of this string is enough to allow
+ * AFL fuzz to run without using the env variable
+ * AFL_SKIP_BIN_CHECK
+ */
+static const char *SHM_ENV = "__AFL_SHM_ID";
+static const char *NOFORK = "AFL_NO_FORKSRV";
+
+static const int afl_read_fd = 198;
+static const int afl_write_fd = afl_read_fd + 1;
+
+static unsigned char __afl_area_initial[1 << 16];
+/*
+ * Note that we make this symbol available to Lua C modules on loading. This allows us to build
+ * modules with afl-gcc and they'll automatically be covered by fuzzing
+ */
+ __attribute__ ((visibility ("default"))) unsigned char *__afl_global_area_ptr = __afl_area_initial;
+static const size_t afl_shm_size = sizeof(__afl_area_initial);
+
+static unsigned char *__afl_area_ptr;
+
+static int shm_init(void) {
+  const char *shm = getenv(SHM_ENV);
+  assert(shm);
+  __afl_global_area_ptr = __afl_area_ptr = (unsigned char *)shmat(atoi(shm), NULL, 0);
+  assert(__afl_area_ptr);
+  return 0;
+}
+
+static int fork_write(int pid) {
+  const int ok = (4 == write(afl_write_fd, &pid, 4));
+  assert(ok);
+  return 0;
+}
+
+static int fork_read(void) {
+  int tmp;
+  const int ok = (4 == read(afl_read_fd, &tmp, 4));
+  assert(ok);
+  return 0;
+}
+
+static int fork_close(void) {
+  close(afl_read_fd);
+  close(afl_write_fd);
+  return 0;
+}
+
+void register_edge_report(void (*)(const unsigned int *, unsigned int index));
+
+#define ROL64(_x, _r)  ((((uint64_t)(_x)) << (_r)) | (((uint64_t)(_x)) >> (64 - (_r))))
+
+static unsigned int current_location;
+static void afl_report(const unsigned int *pc, unsigned int index) {
+  const unsigned int p = ROL64((uintptr_t)pc, 8);
+  const unsigned int new_location = (p + index)% afl_shm_size;
+  __afl_area_ptr[current_location ^ new_location] += 1;
+  current_location = new_location / 2;
+}
+
 
 /*
 ** Main body of stand-alone interpreter (to be called in protected mode).
@@ -556,6 +621,8 @@ static int pmain (lua_State *L) {
   char **argv = (char **)lua_touserdata(L, 2);
   int script;
   int args = collectargs(argv, &script);
+  pid_t child = 0;
+  int status = 0;
   luaL_checkversion(L);  /* check that interpreter has correct version */
   if (argv[0] && argv[0][0]) progname = argv[0];
   if (args == has_error) {  /* bad arg? */
@@ -574,6 +641,33 @@ static int pmain (lua_State *L) {
     if (handle_luainit(L) != LUA_OK)  /* run LUA_INIT */
       return 0;  /* error running LUA_INIT */
   }
+  /* AFL machinery */
+  shm_init();
+  register_edge_report(afl_report);
+  if (getenv(NOFORK)) {
+    goto start;
+  }
+
+  fork_write(0); // let AFL know we're here
+
+  while (1) {
+    fork_read(); // discard report from AFL
+    child = fork();
+    if (child == 0) {
+      fork_close();
+      goto start;
+    }
+    fork_write(child);
+    status = 0;
+    wait(&status);
+    if (WIFEXITED(status) && WEXITSTATUS(status)) {
+      /* catches exits due to errors */
+      status = 6;
+    }
+    fork_write(status);
+  }
+start:
+  /* AFL machinery end */
   if (!runargs(L, argv, script))  /* execute arguments -e and -l */
     return 0;  /* something failed */
   if (script < argc &&  /* execute main script (if there is one) */
