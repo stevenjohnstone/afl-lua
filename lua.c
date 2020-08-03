@@ -560,7 +560,7 @@ static const char *SHM_ENV = "__AFL_SHM_ID";
 static const char *NOFORK = "AFL_NO_FORKSRV";
 
 static const int afl_read_fd = 198;
-static const int afl_write_fd = afl_read_fd + 1;
+static const int afl_write_fd = 199;
 
 static unsigned char __afl_area_initial[1 << 16];
 /*
