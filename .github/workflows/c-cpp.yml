@@ -15,4 +15,9 @@ jobs:
     - uses: actions/checkout@v2
     - name: make
       run: make
+    - name: Upload math result for job 2
+      uses: actions/upload-artifact@v2
+      with:
+          name: afl-lua
+          path: afl-lua
     
