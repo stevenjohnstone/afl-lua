@@ -38,6 +38,10 @@ static void (*edge_report)(const unsigned int *pc, unsigned int index) = noop_re
 void register_edge_report(void (*f)(const unsigned int*, unsigned int index)) {
   edge_report = f;
 }
+static unsigned int edge_max(unsigned int idx) {
+	return idx > 10 ? 10 : idx;
+}
+
 /* AFL machinery end - as you were */
 
 
@@ -1213,7 +1217,7 @@ void luaV_execute (lua_State *L) {
           lua_Integer limit = ivalue(ra + 1);
           if ((0 < step) ? (idx <= limit) : (limit <= idx)) {
             ci->u.l.savedpc += GETARG_sBx(i);  /* jump back */
-            edge_report(ci->u.l.savedpc, idx);
+            edge_report(ci->u.l.savedpc, edge_max(idx));
             chgivalue(ra, idx);  /* update internal index... */
             setivalue(ra + 3, idx);  /* ...and external index */
           }
@@ -1225,7 +1229,7 @@ void luaV_execute (lua_State *L) {
           if (luai_numlt(0, step) ? luai_numle(idx, limit)
                                   : luai_numle(limit, idx)) {
             ci->u.l.savedpc += GETARG_sBx(i);  /* jump back */
-            edge_report(ci->u.l.savedpc, idx);
+            edge_report(ci->u.l.savedpc, edge_max(idx));
             chgfltvalue(ra, idx);  /* update internal index... */
             setfltvalue(ra + 3, idx);  /* ...and external index */
           }
