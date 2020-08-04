@@ -31,15 +31,16 @@
 #include "lvm.h"
 
 /* AFL machinery start */
-void register_edge_report(void (*)(const unsigned int*, unsigned int));
+void register_edge_report(void (*)(unsigned int));
 
-static void noop_report(const unsigned int *pc, unsigned int index) { (void)pc; (void)index; }
-static void (*edge_report)(const unsigned int *pc, unsigned int index) = noop_report;
-void register_edge_report(void (*f)(const unsigned int*, unsigned int index)) {
+static void noop_report(unsigned int pc) { (void)pc; }
+static void (*edge_report)(unsigned int pc) = noop_report;
+void register_edge_report(void (*f)(unsigned int)) {
   edge_report = f;
 }
-static unsigned int edge_max(unsigned int idx) {
-	return idx > 10 ? 10 : idx;
+
+static inline unsigned int PC(CallInfo *ci) {
+  return (uintptr_t)ci->u.l.savedpc;
 }
 
 /* AFL machinery end - as you were */
@@ -692,7 +693,7 @@ void luaV_finishOp (lua_State *L) {
       lua_assert(GET_OPCODE(*ci->u.l.savedpc) == OP_JMP);
       if (res != GETARG_A(inst))  /* condition failed? */
         ci->u.l.savedpc++;  /* skip jump instruction */
-      edge_report(ci->u.l.savedpc, 0);
+      edge_report(PC(ci));
       break;
     }
     case OP_CONCAT: {
@@ -805,7 +806,7 @@ void luaV_execute (lua_State *L) {
   StkId base;
   ci->callstatus |= CIST_FRESH;  /* fresh invocation of 'luaV_execute" */
  newframe:  /* reentry point when frame changes (call/return) */
-  edge_report(ci->u.l.savedpc, 0);
+  edge_report(PC(ci));
   lua_assert(ci == L->ci);
   cl = clLvalue(ci->func);  /* local reference to function's closure */
   k = cl->p->k;  /* local reference to function's constant table */
@@ -1106,7 +1107,7 @@ void luaV_execute (lua_State *L) {
           else
             donextjump(ci);
         )
-        edge_report(ci->u.l.savedpc, 0);
+        edge_report(PC(ci));
         vmbreak;
       }
       vmcase(OP_LT) {
@@ -1116,7 +1117,7 @@ void luaV_execute (lua_State *L) {
           else
             donextjump(ci);
         )
-        edge_report(ci->u.l.savedpc, 0);
+        edge_report(PC(ci));
         vmbreak;
       }
       vmcase(OP_LE) {
@@ -1126,7 +1127,7 @@ void luaV_execute (lua_State *L) {
           else
             donextjump(ci);
         )
-        edge_report(ci->u.l.savedpc, 0);
+        edge_report(PC(ci));
         vmbreak;
       }
       vmcase(OP_TEST) {
@@ -1134,7 +1135,7 @@ void luaV_execute (lua_State *L) {
             ci->u.l.savedpc++;
           else
           donextjump(ci);
-        edge_report(ci->u.l.savedpc, 0);
+        edge_report(PC(ci));
         vmbreak;
       }
       vmcase(OP_TESTSET) {
@@ -1145,7 +1146,7 @@ void luaV_execute (lua_State *L) {
           setobjs2s(L, ra, rb);
           donextjump(ci);
         }
-        edge_report(ci->u.l.savedpc, 0);
+        edge_report(PC(ci));
         vmbreak;
       }
       vmcase(OP_CALL) {
@@ -1153,7 +1154,7 @@ void luaV_execute (lua_State *L) {
         int nresults = GETARG_C(i) - 1;
         if (b != 0) L->top = ra+b;  /* else previous instruction set top */
         if (luaD_precall(L, ra, nresults)) {  /* C function? */
-          edge_report(ci->u.l.savedpc, 0);
+          edge_report(PC(ci));
           if (nresults >= 0)
             L->top = ci->top;  /* adjust results */
           Protect((void)0);  /* update 'base' */
@@ -1169,7 +1170,7 @@ void luaV_execute (lua_State *L) {
         if (b != 0) L->top = ra+b;  /* else previous instruction set top */
         lua_assert(GETARG_C(i) - 1 == LUA_MULTRET);
         if (luaD_precall(L, ra, LUA_MULTRET)) {  /* C function? */
-          edge_report(ci->u.l.savedpc, 0);
+          edge_report(PC(ci));
           Protect((void)0);  /* update 'base' */
         }
         else {
@@ -1217,7 +1218,7 @@ void luaV_execute (lua_State *L) {
           lua_Integer limit = ivalue(ra + 1);
           if ((0 < step) ? (idx <= limit) : (limit <= idx)) {
             ci->u.l.savedpc += GETARG_sBx(i);  /* jump back */
-            edge_report(ci->u.l.savedpc, edge_max(idx));
+            edge_report(PC(ci));
             chgivalue(ra, idx);  /* update internal index... */
             setivalue(ra + 3, idx);  /* ...and external index */
           }
@@ -1229,7 +1230,7 @@ void luaV_execute (lua_State *L) {
           if (luai_numlt(0, step) ? luai_numle(idx, limit)
                                   : luai_numle(limit, idx)) {
             ci->u.l.savedpc += GETARG_sBx(i);  /* jump back */
-            edge_report(ci->u.l.savedpc, edge_max(idx));
+            edge_report(PC(ci));
             chgfltvalue(ra, idx);  /* update internal index... */
             setfltvalue(ra + 3, idx);  /* ...and external index */
           }
@@ -1282,7 +1283,7 @@ void luaV_execute (lua_State *L) {
         if (!ttisnil(ra + 1)) {  /* continue loop? */
           setobjs2s(L, ra, ra + 1);  /* save control variable */
           ci->u.l.savedpc += GETARG_sBx(i);  /* jump back */
-          edge_report(ci->u.l.savedpc, 0);
+          edge_report(PC(ci));
         }
         vmbreak;
       }

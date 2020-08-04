@@ -96,3 +96,24 @@ luarocks install foo CC=afl-gcc
 ## Other Approaches
 
 It's possible to make a fuzzer along the lines of [afl-python](https://github.com/jwilk/python-afl) where debug instrumentation is used to provide coverage guidance. See [this gist](https://gist.github.com/stevenjohnstone/2236f632bb58697311cd01ea1cafbbc6) for a Lua implementation. 
+
+
+## Advanced Usage
+
+### Annotations
+
+It's possible to fuzz the tradionally unfuzzable by adding "human-in-the-loop" annotations to code, following the example of [Ijon](https://github.com/RUB-SysSec/ijon). In ./maze, a simple (but hard for fuzzers to solve) maze game
+is annotated with AFL feedback which reveals the _state_ of the game which isn't reflected in simply
+recording coverage. A [C Lua module](/maze/annotations.c) is added which will record the current row and column in the game so that new pathways are revealed to AFL. Without this, the fuzzer would likely fail to find a solution as code coverage alone tells us little about where the player currently is in the maze.
+
+To try it out:
+
+```
+make # build afl-lua
+cd maze
+./fuzz.sh
+```
+
+Here's a solution the fuzzer came up with after a few minutes:
+
+![solution](./maze/maze.svg)

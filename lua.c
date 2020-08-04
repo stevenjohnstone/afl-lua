@@ -567,8 +567,12 @@ static unsigned char __afl_area_initial[1 << 16];
  * Note that we make this symbol available to Lua C modules on loading. This allows us to build
  * modules with afl-gcc and they'll automatically be covered by fuzzing
  */
- __attribute__ ((visibility ("default"))) unsigned char *__afl_global_area_ptr = __afl_area_initial;
-static const size_t afl_shm_size = sizeof(__afl_area_initial);
+__attribute__ ((visibility ("default"))) unsigned char *__afl_global_area_ptr = __afl_area_initial;
+__attribute__ ((visibility ("default"))) unsigned int __afl_prev_loc; 
+__attribute__ ((visibility ("default"))) const size_t afl_shm_size = sizeof(__afl_area_initial);
+/* For ijon like functionality */
+__attribute__ ((visibility ("default"))) unsigned int __afl_state;
+__attribute__ ((visibility ("default"))) unsigned int __afl_mask = ~((unsigned int)0);
 
 static unsigned char *__afl_area_ptr;
 
@@ -599,16 +603,13 @@ static int fork_close(void) {
   return 0;
 }
 
-void register_edge_report(void (*)(const unsigned int *, unsigned int index));
+void register_edge_report(void (*)(unsigned int));
 
-#define ROL64(_x, _r)  ((((uint64_t)(_x)) << (_r)) | (((uint64_t)(_x)) >> (64 - (_r))))
-
-static unsigned int current_location;
-static void afl_report(const unsigned int *pc, unsigned int index) {
-  const unsigned int p = ROL64((uintptr_t)pc, 8);
-  const unsigned int new_location = (p + index)% afl_shm_size;
-  __afl_area_ptr[current_location ^ new_location] += 1;
-  current_location = new_location / 2;
+__attribute__ ((visibility ("default"))) void afl_report(unsigned int);
+void afl_report(unsigned int pc) {
+  const unsigned int cur_loc = pc % afl_shm_size;
+  __afl_area_ptr[__afl_mask & (__afl_state ^ __afl_prev_loc ^ cur_loc)] += 1;
+  __afl_prev_loc = cur_loc / 2;
 }
 
 
