@@ -52,7 +52,7 @@ function maze:move(input)
         return false
     else
         -- collision
-        lastr[self.col] = 'X'
+        lastr[self.col] = 'x'
         return false
     end
 end

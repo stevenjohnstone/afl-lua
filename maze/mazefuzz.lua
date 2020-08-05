@@ -1,30 +1,12 @@
 local maze = require("maze")
 local annotations = require("annotations")
-
-
-local asciigrid = {
-    "+-+---+---+",
-    "| |     |#|",
-    "| | --+ | |",
-    "| |   | | |",
-    "| +-- | | |",
-    "|     |   |",
-    "+-----+---+"
-}
-
-local grid = {}
-for _, row in ipairs(asciigrid) do
-    local r = {}
-    for c in row:gmatch(".") do
-        table.insert(r, c)
-    end
-    table.insert(grid, r)
-end
+local grid = require("grid")
 
 local m = maze:new(grid)
 m.afl_set = annotations.afl_set
 
-while true do
+local i = 512
+while i > 0 do
     m:draw()
     local direction = io.read(1)
     local ok, v = pcall(m.move, m, direction)
@@ -35,7 +17,7 @@ while true do
 
     if v then
         print("winner!")
-	    os.exit(1)
+        os.exit(1)
     end
+    i = i - 1
 end
-

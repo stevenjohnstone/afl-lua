@@ -1,23 +1,5 @@
 local maze = require("maze")
-
-local asciigrid = {
-    "+-+---+---+",
-    "| |     |#|",
-    "| | --+ | |",
-    "| |   | | |",
-    "| +-- | | |",
-    "|     |   |",
-    "+-----+---+"
-}
-
-local grid = {}
-for _, row in ipairs(asciigrid) do
-    local r = {}
-    for c in row:gmatch(".") do
-        table.insert(r, c)
-    end
-    table.insert(grid, r)
-end
+local grid = require("grid")
 
 local m = maze:new(grid)
 
@@ -32,5 +14,5 @@ for c in moves:gmatch(".") do
         m:draw()
         break
     end
-    sleep(0.5)
+    sleep(0.1)
 end
