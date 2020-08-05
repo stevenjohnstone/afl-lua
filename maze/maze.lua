@@ -42,6 +42,7 @@ function maze:move(input)
 
     if r[col] == '#' then
         -- win
+        r[col] = 'X'
         return true
     end
 

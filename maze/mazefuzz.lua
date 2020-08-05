@@ -7,7 +7,6 @@ m.afl_set = annotations.afl_set
 
 local i = 512
 while i > 0 do
-    m:draw()
     local direction = io.read(1)
     local ok, v = pcall(m.move, m, direction)
     if not ok then
