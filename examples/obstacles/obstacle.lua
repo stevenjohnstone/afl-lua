@@ -30,7 +30,6 @@ end
 
 function obstacle:move(input)
     local row, col = self.row, self.col
-    self.afl_set(row, col)
     self.afl_max(row, col)
     if input == "w" then
         row = row - 1
