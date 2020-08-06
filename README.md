@@ -81,11 +81,11 @@ You should see the fuzzer kick off and in short order find an input with will ca
 ```
 ## C module fuzzing
 
-If C module dependencies are build with "afl-fuzz", then coverage guidance from the C modules will be reported. This allows
+If C module dependencies are build with "afl-gcc", then coverage guidance from the C modules will be reported. This allows
 bugs in the C modules to found (which are more likely to be exploitable). With Luarocks, this is achieved by appending
 
 ```
-CC=afl-fuzz
+CC=afl-gcc
 ```
 when installing a rock e.g.
 
