@@ -3,7 +3,9 @@ local annotations = require("annotations")
 local grid = require("grid")
 
 local m = maze:new(grid)
-m.afl_set = annotations.afl_set
+m.state_set = function(row, col)
+    annotations.afl_map_set(row << 8 | col)
+end
 
 local i = 512
 while i > 0 do

@@ -1,12 +1,23 @@
-local maze = {}
-maze.__index = maze
+local obstacle = {}
+obstacle.__index = obstacle
 
-function maze:new(grid)
-    grid[2][2] = 'X'
-    return setmetatable({grid = grid, row = 2, col = 2, afl_set = function(_,_) end}, self)
+function obstacle:new(grid)
+    grid[2][2] = "X"
+    return setmetatable(
+        {
+            grid = grid,
+            row = 2,
+            col = 2,
+            afl_set = function(_, _)
+            end,
+            afl_max = function(_, _)
+            end
+        },
+        self
+    )
 end
 
-function maze:draw()
+function obstacle:draw()
     io.write("\027[H\027[2J")
     for _, row in ipairs(self.grid) do
         for _, cell in ipairs(row) do
@@ -17,9 +28,10 @@ function maze:draw()
     print("")
 end
 
-function maze:move(input)
+function obstacle:move(input)
     local row, col = self.row, self.col
     self.afl_set(row, col)
+    self.afl_max(row, col)
     if input == "w" then
         row = row - 1
     elseif input == "s" then
@@ -29,33 +41,33 @@ function maze:move(input)
     elseif input == "d" then
         col = col + 1
     else
-        error('wrong command')
+        error("wrong command")
     end
     if row < 1 or col < 1 or row > #self.grid or col > #self.grid[1] then
         return false
     end
 
     local r = self.grid[self.row]
-    r[self.col] = ' ' -- clear the marker
+    r[self.col] = " " -- clear the marker
     local lastr = r
     r = self.grid[row]
 
-    if r[col] == '#' then
+    if r[col] == "#" then
         -- win
-        r[col] = 'X'
+        r[col] = "X"
         return true
     end
 
-    if r[col] == ' ' then
+    if r[col] == " " then
         self.row = row
         self.col = col
-        r[self.col] = 'X'
+        r[self.col] = "X"
         return false
     else
         -- collision
-        lastr[self.col] = 'x'
+        lastr[self.col] = "x"
         return false
     end
 end
 
-return maze
+return obstacle

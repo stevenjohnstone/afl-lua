@@ -22,8 +22,12 @@
 ******************************************************************************/
 
 /******************************************************************************
-* Partial implementation of https://github.com/RUB-SysSec/ijon
+* Implementation of some annotation primitives descrived here:
+* https://github.com/RUB-SysSec/ijon
 * 
+* Implemented IJON_MAX and IJON_MIN without requiring modifications to afl-fuzz.
+* Max and min values are stored locally and when one changes a value in the
+* shared memory is modified to indicate that a new state has been reached.
 ******************************************************************************/
  
 
@@ -39,6 +43,8 @@ extern unsigned int __afl_mask;
 extern const size_t afl_shm_size;
 
 static unsigned int __afl_state_log;
+static unsigned int minmax_area[1<<8];
+static size_t minmax_area_size = sizeof(minmax_area);
 
 
 static int afl_map_set(lua_State *L) {
@@ -77,6 +83,28 @@ static int afl_enable(__attribute__((unused)) lua_State *L) {
     return 0;
 }
 
+static void max(unsigned int slot, unsigned int value) {
+    if (minmax_area[slot%minmax_area_size] < value) {
+        const unsigned int offset = ((value << 8) | slot)%afl_shm_size;
+        minmax_area[slot%minmax_area_size] = value;
+        __afl_global_area_ptr[__afl_state ^ offset] |= 1;
+    }
+}
+
+static int afl_max(lua_State *L) {
+    unsigned int slot    = lua_tointeger(L, 1);
+    unsigned int value   = lua_tointeger(L, 2);
+    max(slot, value);
+    return 0;
+}
+
+static int afl_min(lua_State *L) {
+    unsigned int slot    = lua_tointeger(L, 1);
+    unsigned int value   = lua_tointeger(L, 2);
+    max(slot, (~(unsigned int)0) - value);
+    return 0;
+}
+
 
 static const struct luaL_Reg annotations[] = {
     {"afl_map_set", afl_map_set},
@@ -85,6 +113,8 @@ static const struct luaL_Reg annotations[] = {
     {"afl_state_push", afl_state_push},
     {"afl_disable", afl_disable},
     {"afl_enabled", afl_enable},
+    {"afl_min", afl_min},
+    {"afl_max", afl_max},
     {NULL, NULL}
 };
 

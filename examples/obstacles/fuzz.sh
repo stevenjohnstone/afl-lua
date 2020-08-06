@@ -2,9 +2,8 @@
 mkdir -p {in,out}
 echo -n "s" > in/first
 
-gcc -I ../ -shared -fPIC annotations.c -o annotations.so
 start=$(date +%s.%N)
-AFL_BENCH_UNTIL_CRASH=1 afl-fuzz -i in -o out ../afl-lua mazefuzz.lua
+LUA_CPATH="../../?.so" AFL_BENCH_UNTIL_CRASH=1 afl-fuzz -i in -o out ../../afl-lua obstaclefuzz.lua
 duration=$(echo "$(date +%s.%N) - $start" | bc)
 
 for crash in out/crashes/id*; do
