@@ -102,11 +102,21 @@ It's possible to make a fuzzer along the lines of [afl-python](https://github.co
 
 ### Annotations
 
+Fuzzing driven by code-coverage alone has limitations. Often, programs are structured so that a large proportion of code
+can be covered while reaching very few states. There comes a point where the fuzzer gets no useful feedback from coverage
+to guide future guesses and the fuzzer becomes no better than a dumb-fuzzer providing random inputs. It's possible to fuzz
+the tradionally unfuzzable by adding "human-in-the-loop" annotations to code, following the example of
+[Ijon](https://github.com/RUB-SysSec/ijon). Simple maze and obstacle course games are presented as examples of code where
+code coverage can be very quickly saturated without reaching any interesting states at all. By adding "annotations" to the
+code, the fuzzer can be guided to reach new and interesting states and be made to actually solve puzzles. This is quite
+remarkable as the maze, for example, is difficult enough to defeat symbolic exectution engines due to the explosion of states.
+
 #### Solving a Maze
 
-It's possible to fuzz the tradionally unfuzzable by adding "human-in-the-loop" annotations to code, following the example of [Ijon](https://github.com/RUB-SysSec/ijon). In ./maze, a simple (but hard for fuzzers to solve) maze game
-is annotated with AFL feedback which reveals the _state_ of the game which isn't reflected in simply
-recording coverage. A [C Lua module](/annotations/annotations.c) is added which will record the current row and column in the game so that new pathways are revealed to AFL. Without this, the fuzzer would likely fail to find a solution as code coverage alone tells us little about where the player currently is in the maze.
+In [./examples/maze](/examples/maze), a simple maze game is annotated with [afl_state](examples/maze/maze.lua#L31) so that
+new player positions are reported back to the fuzzer, in addition to code coverage. This annotation allows the fuzzer to
+find inputs which solve the puzzle in a matter of minutes. Without this annotation, the fuzzer can be left for hours without
+success and it's unlikely that a good input would be found.
 
 To try it out:
 
@@ -126,7 +136,9 @@ Here's a solution the fuzzer came up with after a few minutes:
 In afl-lua, equivalents are implemented without requiring changes to afl-fuzz. Instead, a table of previous max/min state values is stored by the annotation library and new values are communicated to afl-fuzz when those
 change.
 
-To demonstrate this functionality, an obstacle course game is driven by afl-lua with ```afl_max``` which drives the fuzzer to keep seeking states to the right of the current state.
+To demonstrate this functionality, an obstacle course game is driven by afl-lua with
+a call to [afl_max](/examples/obstacles/obstacle.lua#L33) which prompts the fuzzer to choose inputs which maximise the
+distance to the right which the player travels.
 
 To try it out:
 
@@ -137,6 +149,8 @@ cd examples/obstacle
 ```
 
 ![solution](./examples/obstacles/obstacle.svg)
+
+
 
 
 
