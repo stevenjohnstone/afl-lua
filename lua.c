@@ -372,12 +372,18 @@ static unsigned char __afl_area_initial[1 << 16];
  */
 __attribute__ ((visibility ("default"))) unsigned char *__afl_global_area_ptr = __afl_area_initial;
 __attribute__ ((visibility ("default"))) unsigned int __afl_prev_loc; 
-__attribute__ ((visibility ("default"))) const size_t afl_shm_size = sizeof(__afl_area_initial);
+__attribute__ ((visibility ("default"))) const size_t __afl_shm_size = sizeof(__afl_area_initial);
 /* For ijon like functionality */
 __attribute__ ((visibility ("default"))) unsigned int __afl_state;
+__attribute__ ((visibility ("default"))) unsigned int __afl_state_log;
 __attribute__ ((visibility ("default"))) unsigned int __afl_mask = ~((unsigned int)0);
 
-static unsigned char *__afl_area_ptr;
+
+static unsigned int afl_scratch_storage[512];
+__attribute__ ((visibility ("default"))) unsigned int *__afl_scratch_area = afl_scratch_storage;
+__attribute__ ((visibility ("default"))) const size_t __afl_scratch_area_size = sizeof(afl_scratch_storage)/sizeof(afl_scratch_storage[0]);
+
+static unsigned char *__afl_area_ptr = __afl_area_initial;
 
 static int shm_init(void) {
   const char *shm = getenv(SHM_ENV);
@@ -410,7 +416,7 @@ void register_edge_report(void (*)(unsigned int));
 
 __attribute__ ((visibility ("default"))) void afl_report(unsigned int);
 void afl_report(unsigned int pc) {
-  const unsigned int cur_loc = pc % afl_shm_size;
+  const unsigned int cur_loc = pc % __afl_shm_size;
   __afl_area_ptr[__afl_mask & (__afl_state ^ __afl_prev_loc ^ cur_loc)] += 1;
   __afl_prev_loc = cur_loc / 2;
 }

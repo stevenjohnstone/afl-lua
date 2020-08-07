@@ -22,12 +22,12 @@
 ******************************************************************************/
 
 /******************************************************************************
-* Implementation of some annotation primitives descrived here:
+* Implementation of some annotation primitives described here:
 * https://github.com/RUB-SysSec/ijon
 * 
 * Implemented IJON_MAX and IJON_MIN without requiring modifications to afl-fuzz.
-* Max and min values are stored locally and when one changes a value in the
-* shared memory is modified to indicate that a new state has been reached.
+* Max and min values are stored in the scratch area. When a value changes a state
+* change is reported to afl via the shared memory bitmap.
 ******************************************************************************/
  
 
@@ -40,36 +40,35 @@ int luaopen_annotations(lua_State *);
 extern unsigned char *__afl_global_area_ptr;
 extern unsigned int __afl_state;
 extern unsigned int __afl_mask;
-extern const size_t afl_shm_size;
-
-static unsigned int __afl_state_log;
-static unsigned int minmax_area[1<<8];
-static size_t minmax_area_size = sizeof(minmax_area);
+extern const size_t __afl_shm_size;
+extern unsigned int *__afl_scratch_area;
+extern const size_t __afl_scratch_area_size;
+extern unsigned int __afl_state_log;
 
 
 static int afl_map_set(lua_State *L) {
     int val = lua_tointeger(L, 1);
-    __afl_global_area_ptr[__afl_state ^ (val % afl_shm_size)] |= 1;
+    __afl_global_area_ptr[__afl_state ^ (val % __afl_shm_size)] |= 1;
     return 0;
 }
 
 static int afl_map_inc(lua_State *L) {
     int val = lua_tointeger(L, 1);
-    __afl_global_area_ptr[__afl_state ^ (val % afl_shm_size)] += 1;
+    __afl_global_area_ptr[__afl_state ^ (val % __afl_shm_size)] += 1;
     return 0;
 }
 
 static int afl_state_xor(lua_State *L) {
     int val = lua_tointeger(L, 1);
-    __afl_state = (__afl_state ^ val) % afl_shm_size;
+    __afl_state = (__afl_state ^ val) % __afl_shm_size;
     return 0;
 }
 
 static int afl_state_push(lua_State *L) {
     int val = lua_tointeger(L, 1);
-    __afl_state = (__afl_state ^ __afl_state_log) % afl_shm_size;
+    __afl_state = (__afl_state ^ __afl_state_log) % __afl_shm_size;
     __afl_state_log = (__afl_state_log << 8) | (val & 0xff);
-    __afl_state = (__afl_state ^ __afl_state_log) % afl_shm_size;
+    __afl_state = (__afl_state ^ __afl_state_log) % __afl_shm_size;
     return 0;
 }
 
@@ -84,9 +83,10 @@ static int afl_enable(__attribute__((unused)) lua_State *L) {
 }
 
 static void max(unsigned int slot, unsigned int value) {
-    if (minmax_area[slot%minmax_area_size] < value) {
-        const unsigned int offset = ((value << 8) | slot)%afl_shm_size;
-        minmax_area[slot%minmax_area_size] = value;
+    slot = slot %__afl_scratch_area_size;
+    if (__afl_scratch_area[slot] < value) {
+        const unsigned int offset = ((value << 8) | slot)%__afl_shm_size;
+        __afl_scratch_area[slot] = value;
         __afl_global_area_ptr[__afl_state ^ offset] |= 1;
     }
 }
