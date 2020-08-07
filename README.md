@@ -1,7 +1,17 @@
 # afl-lua
 Fork of Lua adding AFL (https://github.com/google/afl) instrumentation to allow Lua scripts (not the VM itself) to be fuzzed.
 
-## Building
+1. [Building](#Building)
+2. [Try it out](#Tryitout)
+3. [C module fuzzing](#Cmodulefuzzing)
+4. [Other Approaches](#OtherApproaches)
+5. [Advanced Usage](#AdvancedUsage)
+	* 5.1. [Annotations](#Annotations)
+		* 5.1.1. [Solving a Maze](#SolvingaMaze)
+		* 5.1.2. [Obstacle Course](#ObstacleCourse)
+
+
+##  1. <a name='Building'></a>Building
 
 On Linux (maybe other POSIX-y systems?), 
 
@@ -11,7 +21,7 @@ make
 
 In the directory, there'll be an executable called "afl-lua".
 
-## Try it out
+##  2. <a name='Tryitout'></a>Try it out
 
 With afl-fuzz installed, make a test case called "test.lua" containing the following:
 
@@ -79,7 +89,7 @@ You should see the fuzzer kick off and in short order find an input with will ca
 │        trim : 80.76%/65, 0.00%                      ├────────────────────────┘
 └─────────────────────────────────────────────────────┘          [cpu000:  9%]
 ```
-## C module fuzzing
+##  3. <a name='Cmodulefuzzing'></a>C module fuzzing
 
 If C module dependencies are build with "afl-gcc", then coverage guidance from the C modules will be reported. This allows
 bugs in the C modules to found (which are more likely to be exploitable). With Luarocks, this is achieved by appending
@@ -93,14 +103,14 @@ when installing a rock e.g.
 luarocks install foo CC=afl-gcc
 ```
 
-## Other Approaches
+##  4. <a name='OtherApproaches'></a>Other Approaches
 
 It's possible to make a fuzzer along the lines of [afl-python](https://github.com/jwilk/python-afl) where debug instrumentation is used to provide coverage guidance. See [this gist](https://gist.github.com/stevenjohnstone/2236f632bb58697311cd01ea1cafbbc6) for a Lua implementation. 
 
 
-## Advanced Usage
+##  5. <a name='AdvancedUsage'></a>Advanced Usage
 
-### Annotations
+###  5.1. <a name='Annotations'></a>Annotations
 
 Fuzzing driven by code-coverage alone has limitations. Often, programs are structured so that a large proportion of code
 can be covered while reaching very few states. There comes a point where the fuzzer gets no useful feedback from coverage
@@ -111,7 +121,7 @@ code coverage can be very quickly saturated without reaching any interesting sta
 code, the fuzzer can be guided to reach new and interesting states and be made to actually solve puzzles. This is quite
 remarkable as the maze, for example, is difficult enough to defeat symbolic exectution engines due to the explosion of states.
 
-#### Solving a Maze
+####  5.1.1. <a name='SolvingaMaze'></a>Solving a Maze
 
 In [./examples/maze](/examples/maze), a simple maze game is annotated with [afl_state](examples/maze/maze.lua#L31) so that
 new player positions are reported back to the fuzzer, in addition to code coverage. This annotation allows the fuzzer to
@@ -130,7 +140,7 @@ Here's a solution the fuzzer came up with after a few minutes:
 
 ![solution](./examples/maze/maze.svg)
 
-#### Obstacle Course
+####  5.1.2. <a name='ObstacleCourse'></a>Obstacle Course
 
 [Ijon](https://github.com/RUB-SysSec/ijon) modifies afl-fuzz to implement primitives IJON_MAX and IJON_MIN which can be used to make the fuzzer choose inputs which maximize or minimize a given state value, respectively.
 In afl-lua, equivalents are implemented without requiring changes to afl-fuzz. Instead, a table of previous max/min state values is stored by the annotation library and new values are communicated to afl-fuzz when those
