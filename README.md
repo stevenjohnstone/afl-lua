@@ -103,6 +103,9 @@ when installing a rock e.g.
 luarocks install foo CC=afl-gcc
 ```
 
+An [example](./examples/lua-cmsgpack/fuzz.sh) of reproducing [CVE-2018-11218](http://antirez.com/news/119) impacting [version 0.4.0-0 of lua-cmsgpack](https://github.com/antirez/lua-cmsgpack/tree/0.4.0) is given
+which demonstrates how the fuzzing coverage extends across pure-Lua into C Lua modules.
+
 ##  4. <a name='OtherApproaches'></a>Other Approaches
 
 It's possible to make a fuzzer along the lines of [afl-python](https://github.com/jwilk/python-afl) where debug instrumentation is used to provide coverage guidance. See [this gist](https://gist.github.com/stevenjohnstone/2236f632bb58697311cd01ea1cafbbc6) for a Lua implementation. 
