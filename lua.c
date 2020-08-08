@@ -9,6 +9,7 @@
 #include "lprefix.h"
 
 
+#include <assert.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -286,6 +287,7 @@ static int pushargs (lua_State *L) {
 #define has_v		4	/* -v */
 #define has_e		8	/* -e */
 #define has_E		16	/* -E */
+#define has_r   32  /* -r */
 
 /*
 ** Traverses all arguments from 'argv', returning a mask with those
@@ -319,6 +321,9 @@ static int collectargs (char **argv, int *first) {
         if (argv[i][2] != '\0')  /* extra characters after 1st? */
           return has_error;  /* invalid option */
         args |= has_v;
+        break;
+      case 'r':
+        args |= has_r;
         break;
       case 'e':
         args |= has_e;  /* FALLTHROUGH */
@@ -451,12 +456,18 @@ static int pmain (lua_State *L) {
     if (handle_luainit(L) != LUA_OK)  /* run LUA_INIT */
       return 0;  /* error running LUA_INIT */
   }
+
+  status = luaL_loadfile(L, (argv + script)[0]);
+  assert(status == LUA_OK);
+
+  if (args & has_r) {
+    goto start;
+  }
+
   /* AFL machinery */
   shm_init();
   register_edge_report(afl_report);
 
-  status = luaL_loadfile(L, (argv + script)[0]);
-  assert(status == LUA_OK);
 
   if (getenv(NOFORK)) {
     goto start;
