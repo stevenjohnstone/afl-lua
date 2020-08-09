@@ -494,6 +494,7 @@ static int pmain (lua_State *L) {
 start:
   /* AFL machinery end */
   status = docall(L, pushargs(L), LUA_MULTRET);
+  report(L, status);
   assert(status == LUA_OK);
   lua_pushboolean(L, 1);  /* signal no errors */
   return 1;
