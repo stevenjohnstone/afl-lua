@@ -422,7 +422,12 @@ void register_edge_report(void (*)(unsigned int));
 __attribute__ ((visibility ("default"))) void afl_report(unsigned int);
 void afl_report(unsigned int pc) {
   const unsigned int cur_loc = pc % __afl_shm_size;
-  __afl_area_ptr[__afl_mask & (__afl_state ^ __afl_prev_loc ^ cur_loc)] += 1;
+  const unsigned int idx = __afl_mask &(__afl_state ^ __afl_prev_loc ^ cur_loc);
+  __afl_area_ptr[idx] += 1;
+  // Inspired by the "NeverZero" patch of AFL++: https://github.com/AFLplusplus/AFLplusplus/pull/11
+  if (__afl_area_ptr[idx] == 0) {
+    __afl_area_ptr[idx] = 1;
+  }
   __afl_prev_loc = cur_loc / 2;
 }
 
