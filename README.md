@@ -167,7 +167,11 @@ cd examples/obstacle
 
 ###  5.2. <a name='PersistentMode'></a>Peristent Mode
 
-To improve peformance of fuzzing, _persistent mode_ can be used. The recipe is
+To improve peformance of fuzzing, _persistent mode_ can be used. In this mode, the fuzzing process loops
+a configurable number of times without exiting while trying new inputs. This reduces the overhead of forking
+a new child process for every new input. The perfomance improvement can be around 3x but your milleage may vary.
+
+The recipe is
 
 ```lua
 for _ in afl.loop(1000) do
