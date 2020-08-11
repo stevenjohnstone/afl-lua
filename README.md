@@ -127,7 +127,7 @@ remarkable as the maze, for example, is difficult enough to defeat symbolic exec
 
 ####  5.1.1. <a name='SolvingaMaze'></a>Solving a Maze
 
-In [./examples/maze](/examples/maze), a simple maze game is annotated with [afl_state](examples/maze/maze.lua#L31) so that
+In [./examples/maze](/examples/maze), a simple maze game is annotated with [afl.map_set](examples/maze/mazefuzz.lua#L11) so that
 new player positions are reported back to the fuzzer, in addition to code coverage. This annotation allows the fuzzer to
 find inputs which solve the puzzle in a matter of minutes. Without this annotation, the fuzzer can be left for hours without
 success and it's unlikely that a good input would be found.
