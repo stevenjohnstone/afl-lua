@@ -10,6 +10,7 @@ Fork of Lua adding AFL (https://github.com/google/afl) instrumentation to allow 
 		* 5.1.1. [Solving a Maze](#SolvingaMaze)
 		* 5.1.2. [Obstacle Course](#ObstacleCourse)
     * 5.2  [Persistent Mode](#PersistentMode)
+    * 5.3  [Dictionaries](#Dictionaries)
 
 
 ##  1. <a name='Building'></a>Building
@@ -188,6 +189,37 @@ This may not be suitable for all targets. For example, if the target leaks memor
 resource exhaustion issues which are hard to debug. If the body of the loop keeps state between iterations, then
 the stability metric may fall and fuzzing will become ineffective.
 
+
+###  5.3. <a name='Dictionaries'></a>Dictionaries
+
+AFL can be configured to use a _dictionary_ to guide fuzzing. To aid in creation of a dictionary, afl-lua has a mode where
+running a script will gather all strings involved in string comparisons. For example, the following target
+
+```lua foo.lua
+local data = io.read("*all")
+if data == "this is an example" then
+    error('oops')
+end
+```
+can be run so that strings are collected for a dictionary:
+
+```shell
+echo -n "foo" | AFL_TOKEN_FILE="$(pwd)/dictionary.txt" ./afl-lua -r test.lua
+```
+
+The content of ```dictionary.txt``` will be:
+
+```
+foo
+this is an example
+```
+
+afl-fuzz will immediately find a input causing an error (as it's right there in the dictionary) when
+run with
+
+```shell
+afl-fuzz -x dictionary.txt -i in/ -o out/ ./afl-lua test.lua
+```
 
 
 

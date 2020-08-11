@@ -9,6 +9,7 @@
 
 #include "lprefix.h"
 
+#include <assert.h>
 #include <float.h>
 #include <limits.h>
 #include <math.h>
@@ -39,6 +40,67 @@ void register_edge_report(void (*f)(unsigned int)) {
   edge_report = f;
 }
 
+__attribute__((constructor)) static void dictionary_dump_init(void);
+__attribute__((destructor)) static void dictionary_dump_fini(void);
+
+
+static FILE *token_file;
+
+static void dictionary_dump_init(void) {
+  const char *token_filename = getenv("AFL_TOKEN_FILE");
+  if (!token_filename) {
+    return;
+  }
+  token_file = fopen(token_filename, "a");
+}
+
+static void dictionary_dump_fini(void) {
+  if (token_file) {
+    fclose(token_file);
+  }
+}
+
+static void escaped_write(const char *str, size_t len) {
+  /* this conforms to the "spec" for afl-fuzz dictionaries */
+  fputs("\"", token_file);
+  for (size_t i = 0; i < len; i++) {
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wpedantic"
+    switch((unsigned char)str[i]) {
+      case 0 ... 31:
+      case 127 ... 255:
+      case '\"':
+      case '\\':
+        fprintf(token_file, "\\x%02x", str[i]);
+        break;
+       default:
+        fputc(str[i], token_file);
+    }
+    #pragma GCC diagnostic pop
+  }
+  fputs("\"\n", token_file);
+}
+
+static void dump(TValue* rb, TValue *rc) {
+  if (token_file) {
+    int rb_type = ttype(rb);
+    int rc_type = ttype(rc);
+    if (rb_type != LUA_TLNGSTR && rb_type != LUA_TSHRSTR) {
+      return;
+    }
+    if (rc_type != LUA_TLNGSTR && rc_type != LUA_TSHRSTR) {
+      return;
+    }
+    {
+      const char *rbstr = getstr(tsvalue(rb));
+      const size_t rbstr_len = tsslen(tsvalue(rb));
+      const char *rcstr = getstr(tsvalue(rc));
+      const size_t rcstr_len = tsslen(tsvalue(rc));
+      escaped_write(rbstr, rbstr_len);
+      escaped_write(rcstr, rcstr_len);
+    }
+  }
+}
 
 static inline unsigned int PC(CallInfo *ci) {
   return (uintptr_t)ci->u.l.savedpc;
@@ -1102,6 +1164,7 @@ void luaV_execute (lua_State *L) {
       vmcase(OP_EQ) {
         TValue *rb = RKB(i);
         TValue *rc = RKC(i);
+        dump(rb, rc);
         Protect(
           if (luaV_equalobj(L, rb, rc) != GETARG_A(i))
             ci->u.l.savedpc++;
@@ -1112,6 +1175,7 @@ void luaV_execute (lua_State *L) {
         vmbreak;
       }
       vmcase(OP_LT) {
+        dump(RKB(i), RKC(i));
         Protect(
           if (luaV_lessthan(L, RKB(i), RKC(i)) != GETARG_A(i))
             ci->u.l.savedpc++;
@@ -1122,6 +1186,7 @@ void luaV_execute (lua_State *L) {
         vmbreak;
       }
       vmcase(OP_LE) {
+        dump(RKB(i), RKC(i));
         Protect(
           if (luaV_lessequal(L, RKB(i), RKC(i)) != GETARG_A(i))
             ci->u.l.savedpc++;
