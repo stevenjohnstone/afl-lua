@@ -32,14 +32,18 @@
 
 /* AFL machinery start */
 void register_edge_report(void (*)(unsigned int));
+//static FILE *pclog;
 
 static void noop_report(unsigned int pc) { (void)pc; }
 static void (*edge_report)(unsigned int pc) = noop_report;
 void register_edge_report(void (*f)(unsigned int)) {
+  //pclog = fopen("/tmp/foo", "w");
   edge_report = f;
 }
 
+
 static inline unsigned int PC(CallInfo *ci) {
+  //fprintf(pclog, "%p\n", (void *)ci->u.l.savedpc);
   return (uintptr_t)ci->u.l.savedpc;
 }
 

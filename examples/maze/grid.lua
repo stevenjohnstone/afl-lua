@@ -14,12 +14,14 @@ local asciigrid = {
     "+---------------+"
 }
 
-local grid = {}
-for _, row in ipairs(asciigrid) do
-    local r = {}
-    for c in row:gmatch(".") do
-        table.insert(r, c)
+return function()
+    local grid = {}
+    for _, row in ipairs(asciigrid) do
+        local r = {}
+        for c in row:gmatch(".") do
+            table.insert(r, c)
+        end
+        table.insert(grid, r)
     end
-    table.insert(grid, r)
+    return grid
 end
-return grid

@@ -366,6 +366,11 @@ static int handle_luainit (lua_State *L) {
  */
 static const char *SHM_ENV = "__AFL_SHM_ID";
 static const char *NOFORK = "AFL_NO_FORKSRV";
+static const char *PERSIST = "__AFL_PERSISTENT";
+/*
+ * Tells AFL that we support persistent state
+ */
+__attribute__((used))  static const char *PERSIST_SIG = "##SIG_AFL_PERSISTENT##";
 
 static const int afl_read_fd = 198;
 static const int afl_write_fd = 199;
@@ -375,26 +380,28 @@ static unsigned char __afl_area_initial[1 << 16];
  * Note that we make this symbol available to Lua C modules on loading. This allows us to build
  * modules with afl-gcc and they'll automatically be covered by fuzzing
  */
-__attribute__ ((visibility ("default"))) unsigned char *__afl_global_area_ptr = __afl_area_initial;
-__attribute__ ((visibility ("default"))) unsigned int __afl_prev_loc; 
-__attribute__ ((visibility ("default"))) const size_t __afl_shm_size = sizeof(__afl_area_initial);
+__attribute__ ((visibility ("default"))) volatile unsigned char *__afl_global_area_ptr = __afl_area_initial;
+volatile unsigned int __afl_prev_loc = 0; 
+volatile unsigned int __afl_enabled = 1; 
+const size_t __afl_shm_size = sizeof(__afl_area_initial);
 /* For ijon like functionality */
-__attribute__ ((visibility ("default"))) unsigned int __afl_state;
-__attribute__ ((visibility ("default"))) unsigned int __afl_state_log;
-__attribute__ ((visibility ("default"))) unsigned int __afl_mask = ~((unsigned int)0);
+volatile unsigned int __afl_state = 0;
+volatile unsigned int __afl_state_log = 0;
 
 
 static unsigned int afl_scratch_storage[512];
-__attribute__ ((visibility ("default"))) unsigned int *__afl_scratch_area = afl_scratch_storage;
-__attribute__ ((visibility ("default"))) const size_t __afl_scratch_area_size = sizeof(afl_scratch_storage)/sizeof(afl_scratch_storage[0]);
+unsigned int *__afl_scratch_area = afl_scratch_storage;
+const size_t __afl_scratch_area_size = sizeof(afl_scratch_storage);
 
 static unsigned char *__afl_area_ptr = __afl_area_initial;
+
 
 static int shm_init(void) {
   const char *shm = getenv(SHM_ENV);
   assert(shm);
   __afl_global_area_ptr = __afl_area_ptr = (unsigned char *)shmat(atoi(shm), NULL, 0);
   assert(__afl_area_ptr);
+  __afl_area_ptr[0] = 1;
   return 0;
 }
 
@@ -404,11 +411,11 @@ static int fork_write(int pid) {
   return 0;
 }
 
-static int fork_read(void) {
-  int tmp;
+static uint32_t fork_read(void) {
+  uint32_t tmp;
   const int ok = (4 == read(afl_read_fd, &tmp, 4));
   assert(ok);
-  return 0;
+  return tmp;
 }
 
 static int fork_close(void) {
@@ -422,7 +429,10 @@ void register_edge_report(void (*)(unsigned int));
 __attribute__ ((visibility ("default"))) void afl_report(unsigned int);
 void afl_report(unsigned int pc) {
   const unsigned int cur_loc = pc % __afl_shm_size;
-  const unsigned int idx = __afl_mask &(__afl_state ^ __afl_prev_loc ^ cur_loc);
+  const unsigned int idx = (__afl_state ^ __afl_prev_loc ^ cur_loc);
+  if (!__afl_enabled) {
+    return;
+  }
   __afl_area_ptr[idx] += 1;
   // Inspired by the "NeverZero" patch of AFL++: https://github.com/AFLplusplus/AFLplusplus/pull/11
   if (__afl_area_ptr[idx] == 0) {
@@ -443,6 +453,11 @@ static int pmain (lua_State *L) {
   int args = collectargs(argv, &script);
   pid_t child = 0;
   int status = 0;
+  int is_persistent = !!getenv(PERSIST);
+  int child_stopped = 0;
+  void (*old_sigchld_handler)(int) = signal(SIGCHLD, SIG_DFL);
+
+
   luaL_checkversion(L);  /* check that interpreter has correct version */
   if (argv[0] && argv[0][0]) progname = argv[0];
   if (args == has_error) {  /* bad arg? */
@@ -480,16 +495,38 @@ static int pmain (lua_State *L) {
 
   fork_write(0); // let AFL know we're here
 
+
   while (1) {
-    fork_read(); // discard report from AFL
-    child = fork();
-    if (child == 0) {
-      fork_close();
-      goto start;
+    uint32_t was_killed = fork_read();
+
+    if (child_stopped && was_killed) {
+      child_stopped = 0;
+      if (waitpid(child, &status, 0) < 0) {
+        _exit(1);
+      }
+    }
+
+    if (!child_stopped) {
+      child = fork();
+      if (child == 0) {
+        signal(SIGCHLD, old_sigchld_handler);
+        fork_close();
+        goto start;
+      }
+    } else {
+      kill(child, SIGCONT);
+      child_stopped = 0;
     }
     fork_write(child);
     status = 0;
-    wait(&status);
+    if (waitpid(child, &status, is_persistent? WUNTRACED: 0) < 0) {
+      _exit(1);
+    }
+
+    if (WIFSTOPPED(status)) {
+      child_stopped = 1;
+    }
+
     if (WIFEXITED(status) && WEXITSTATUS(status)) {
       /* catches exits due to errors */
       status = 6;
@@ -498,10 +535,11 @@ static int pmain (lua_State *L) {
   }
 start:
   /* AFL machinery end */
+  assert(status == LUA_OK);
   status = docall(L, pushargs(L), LUA_MULTRET);
   report(L, status);
   assert(status == LUA_OK);
-  lua_pushboolean(L, 1);  /* signal no errors */
+  lua_pushboolean(L, 1); /* signal no errors */
   return 1;
 }
 

@@ -1,7 +1,7 @@
 local grid = require("grid")
 local obstacle = require("obstacle")
 
-local obs = obstacle:new(grid)
+local obs = obstacle:new(grid())
 obs:draw()
 
 local function sleep(n)

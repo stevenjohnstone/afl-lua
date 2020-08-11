@@ -1,7 +1,7 @@
 local maze = require("maze")
 local grid = require("grid")
 
-local m = maze:new(grid)
+local m = maze:new(grid())
 m:draw()
 
 local function sleep(n)
@@ -15,7 +15,7 @@ for c in moves:gmatch(".") do
     m:draw()
     print("move " .. i .. " " .. c)
     i = i + 1
-    sleep(0.1)
+    sleep(0.01)
     if done then
         break
     end

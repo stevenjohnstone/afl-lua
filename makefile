@@ -76,8 +76,7 @@ CORE_O=	lapi.o lcode.o lctype.o ldebug.o ldo.o ldump.o lfunc.o lgc.o llex.o \
 	ltm.o lundump.o lvm.o lzio.o ltests.o
 AUX_O=	lauxlib.o
 LIB_O=	lbaselib.o ldblib.o liolib.o lmathlib.o loslib.o ltablib.o lstrlib.o \
-	lutf8lib.o lbitlib.o loadlib.o lcorolib.o linit.o
-ANNOTATIONS_SO= annotations.so
+	lutf8lib.o lbitlib.o loadlib.o lcorolib.o linit.o lafl.o
 
 LUA_T=	afl-lua
 LUA_O=	lua.o
@@ -89,7 +88,7 @@ ALL_T= $(CORE_T) $(LUA_T) $(LUAC_T)
 ALL_O= $(CORE_O) $(LUA_O) $(LUAC_O) $(AUX_O) $(LIB_O)
 ALL_A= $(CORE_T)
 
-all:	$(ALL_T) $(ANNOTATIONS_SO)
+all:	$(ALL_T)
 
 o:	$(ALL_O)
 
@@ -102,9 +101,6 @@ $(CORE_T): $(CORE_O) $(AUX_O) $(LIB_O)
 $(LUA_T): $(LUA_O) $(CORE_T)
 	$(CC) -o $@ $(MYLDFLAGS) $(LUA_O) $(CORE_T) $(LIBS) $(MYLIBS) $(DL)
 	$(RM) $(ALL_O)
-
-$(ANNOTATIONS_SO):
-	$(CC) -shared -fPIC $(CFLAGS) -I./ $? -o $@
 
 clean:
 	rcsclean -u
@@ -195,6 +191,6 @@ lvm.o: lvm.c lprefix.h lua.h luaconf.h ldebug.h lstate.h lobject.h \
  ltable.h lvm.h
 lzio.o: lzio.c lprefix.h lua.h luaconf.h llimits.h lmem.h lstate.h \
  lobject.h ltm.h lzio.h
-annotations.so: annotations/annotations.c
+lafl.o: lafl.c
 
 # (end of Makefile)

@@ -9,6 +9,7 @@ Fork of Lua adding AFL (https://github.com/google/afl) instrumentation to allow 
 	* 5.1. [Annotations](#Annotations)
 		* 5.1.1. [Solving a Maze](#SolvingaMaze)
 		* 5.1.2. [Obstacle Course](#ObstacleCourse)
+    * 5.2  [Persistent Mode](#PersistentMode)
 
 
 ##  1. <a name='Building'></a>Building
@@ -164,6 +165,24 @@ cd examples/obstacle
 ![solution](./examples/obstacles/obstacle.svg)
 
 
+###  5.2. <a name='PersistentMode'></a>Peristent Mode
+
+To improve peformance of fuzzing, _persistent mode_ can be used. The recipe is
+
+```lua
+for _ in afl.loop(1000) do
+    local data = io.read("*all")
+    local ok = pcall(target(data))
+    if not ok then
+        // flag an interesting error to AFL
+        os.exit(1)
+    end
+end
+```
+
+This may not be suitable for all targets. For example, if the target leaks memory, file descriptor etc, then this will result in
+resource exhaustion issues which are hard to debug. If the body of the loop keeps state between iterations, then
+the stability metric may fall and fuzzing will become ineffective.
 
 
 

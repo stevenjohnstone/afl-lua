@@ -1,22 +1,21 @@
 local grid = require("grid")
-local annotations = require("annotations")
 local obstacle = require("obstacle")
 
-local obs = obstacle:new(grid)
-obs.afl_max = annotations.afl_max
 
-local i = 1024
-while i > 0 do
-    local direction = io.read(1)
-    local ok, v = pcall(obs.move, obs, direction)
-    if not ok then
-        print(v)
-        break
-    end
+for _ in afl.loop(10000) do
+    local obs = obstacle:new(grid())
+    obs.afl_max = afl.max
+    local data = io.read("*all")
+    for direction in data:gmatch(".") do
+        local ok, v = pcall(obs.move, obs, direction)
+        if not ok then
+            print(v)
+            break
+        end
 
-    if v then
-        print("winner!")
-        os.exit(1)
+        if v then
+            print("winner!")
+            os.exit(1)
+        end
     end
-    i = i - 1
 end
