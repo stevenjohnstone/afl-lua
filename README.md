@@ -178,7 +178,7 @@ for _ in afl.loop(1000) do
     local data = io.read("*all")
     local ok = pcall(target(data))
     if not ok then
-        // flag an interesting error to AFL
+        -- flag an interesting error to AFL
         os.exit(1)
     end
 end
