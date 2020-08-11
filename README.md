@@ -165,7 +165,7 @@ cd examples/obstacle
 ![solution](./examples/obstacles/obstacle.svg)
 
 
-###  5.2. <a name='PersistentMode'></a>Peristent Mode
+###  5.2. <a name='PersistentMode'></a>Persistent Mode
 
 To improve peformance of fuzzing, _persistent mode_ can be used. In this mode, the fuzzing process loops
 a configurable number of times without exiting while trying new inputs. This reduces the overhead of forking
